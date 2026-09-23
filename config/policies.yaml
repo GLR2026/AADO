@@ -1,0 +1,85 @@
+﻿project:
+  name: AADO
+  phase: F1
+
+runtime:
+  private_root: "C:\AADO_PRIVATE"
+
+mode:
+  default: supervised
+
+permissions:
+
+  production:
+    allowed: false
+
+  spending:
+    allowed: false
+
+  credentials:
+    modify_allowed: false
+
+  destructive_actions:
+    require_explicit_approval: true
+
+  system_changes:
+    require_approval_in_supervised_mode: true
+
+watchdog:
+
+  max_attempts_per_hypothesis: null
+  max_total_iterations: null
+
+  agent_may_modify_limits_during_task: false
+
+consultation:
+
+  enabled: true
+
+  commercial_variable_api:
+    enabled: false
+
+  subscription_guided:
+    enabled: true
+
+  soft_context_budget_tokens: 8000
+  hard_context_budget_tokens: 16000
+
+  human_review_before_external_send: true
+
+logging:
+
+  raw_logs_retention_days: 14
+  compressed_logs_retention_days: 90
+
+disk:
+
+  warning_percent: 80
+  stop_nonessential_percent: 90
+
+git:
+
+  direct_changes_to_main_allowed: false
+  task_branch_prefix: "aado/task-"
+  failed_branch_retention_days: 7
+
+rollback:
+
+  required_before_persistent_change: true
+
+  code:
+    strategy: git_branch_or_worktree
+
+  non_code:
+    strategy: backup_or_snapshot
+
+security:
+
+  secrets_in_git_allowed: false
+  secrets_in_consultation_allowed: false
+  runtime_files_inside_project_repo_allowed: false
+
+external_ai:
+
+  treat_advice_as_hypothesis: true
+  commercial_api_requires_explicit_po_authorization: true
