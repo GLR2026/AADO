@@ -1,0 +1,40 @@
+﻿schema_version: 1
+round_id: R0002
+created_at: "2026-09-24T19:18:19-03:00"
+updated_at: "2026-09-24T19:18:20-03:00"
+status: draft
+
+topic:
+  title: "Prueba end-to-end limpia de AADO-COMM-001"
+  category: "testing"
+
+participants:
+  implementer: ChatGPT
+  auditors:
+    - Claude
+    - Gemini
+  po: Guido
+
+phases:
+  proposal: completed
+  blind_review:
+    claude: completed
+    gemini: completed
+  blind_review_closed: true
+  cross_review:
+    claude: completed
+    gemini: completed
+  implementer_response: completed
+  po_digest: completed
+publication:
+  branch: null
+  commit: null
+  pr_url: null
+
+
+
+
+
+
+
+
