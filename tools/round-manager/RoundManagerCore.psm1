@@ -2,7 +2,7 @@
 AADO-COMM-001
 Round Manager Core
 
-Version: 0.8.0
+Version: 0.9.1
 Status: EARLY FUNCTIONAL
 
 Purpose:
@@ -286,6 +286,14 @@ publication:
   branch: null
   commit: null
   pr_url: null
+  pr_number: null
+  mergeability: null
+  checked_at: null
+
+po_decision:
+  status: pending
+  decided_at: null
+  approved_commit: null
 "@
 
     Set-Content `
@@ -1008,6 +1016,264 @@ function Build-AadoPODigest {
     }
 }
 
+function Set-AadoPublicationMetadata {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidatePattern('^R\d{4}$')]
+        [string]$RoundId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Branch,
+
+        [Parameter(Mandatory = $true)]
+        [ValidatePattern('^[0-9a-fA-F]{40}$')]
+        [string]$Commit,
+
+        [Parameter(Mandatory = $true)]
+        [ValidatePattern('^https://github\.com/.+/.+/pull/\d+$')]
+        [string]$PrUrl,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateRange(1, 2147483647)]
+        [int]$PrNumber,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('clean','conflicts','unknown')]
+        [string]$Mergeability
+    )
+
+    $RoundDir = Get-AadoRoundDirectory -RoundId $RoundId
+    $YamlPath = Join-Path $RoundDir "round.yaml"
+
+    $Yaml = Get-Content $YamlPath -Raw
+
+    if (
+        $Yaml -notmatch
+        '(?m)^\s{2}po_digest:\s+completed\s*$'
+    ) {
+        throw "PO Digest must be completed before publication metadata."
+    }
+
+    if (
+        $Yaml -match
+        '(?m)^\s{2}branch:\s+(?!null\s*$).+$'
+    ) {
+        throw "Publication metadata already exists. Refusing silent overwrite."
+    }
+
+    $Now = Get-AadoTimestamp
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^(\s{2})branch:\s+null\s*$',
+        '${1}branch: "' + $Branch + '"',
+        1
+    )
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^(\s{2})commit:\s+null\s*$',
+        '${1}commit: "' + $Commit.ToLowerInvariant() + '"',
+        1
+    )
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^(\s{2})pr_url:\s+null\s*$',
+        '${1}pr_url: "' + $PrUrl + '"',
+        1
+    )
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^(\s{2})pr_number:\s+null\s*$',
+        '${1}pr_number: ' + $PrNumber,
+        1
+    )
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^(\s{2})mergeability:\s+null\s*$',
+        '${1}mergeability: "' + $Mergeability + '"',
+        1
+    )
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^(\s{2})checked_at:\s+null\s*$',
+        '${1}checked_at: "' + $Now + '"',
+        1
+    )
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^updated_at:\s*".*?"\s*$',
+        'updated_at: "' + $Now + '"'
+    )
+
+    Set-Content `
+        -Path $YamlPath `
+        -Value $Yaml `
+        -Encoding UTF8
+
+    return [pscustomobject]@{
+        RoundId      = $RoundId
+        Branch       = $Branch
+        Commit       = $Commit.ToLowerInvariant()
+        PrNumber     = $PrNumber
+        PrUrl        = $PrUrl
+        Mergeability = $Mergeability
+        CheckedAt    = $Now
+    }
+}
+
+
+function Set-AadoPODecision {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidatePattern('^R\d{4}$')]
+        [string]$RoundId,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet(
+            'APPROVED_FOR_MERGE',
+            'CHANGES_REQUESTED',
+            'REJECTED'
+        )]
+        [string]$Decision,
+
+        [Parameter(Mandatory = $true)]
+        [ValidatePattern('^[0-9a-fA-F]{40}$')]
+        [string]$ExpectedCommit,
+
+        [string]$Note = ""
+    )
+
+    $RoundDir = Get-AadoRoundDirectory -RoundId $RoundId
+    $YamlPath = Join-Path $RoundDir "round.yaml"
+    $DecisionPath = Join-Path $RoundDir "po-decision.md"
+
+    $Yaml = Get-Content $YamlPath -Raw
+
+    if (
+        $Yaml -notmatch
+        '(?m)^po_decision:\s*$'
+    ) {
+        throw "This round does not contain po_decision metadata."
+    }
+
+    if (
+        $Yaml -notmatch
+        '(?m)^\s{2}status:\s+pending\s*$'
+    ) {
+        throw "PO decision is not pending. Refusing silent overwrite."
+    }
+
+    $CommitMatch = [regex]::Match(
+        $Yaml,
+        '(?m)^\s{2}commit:\s*"([0-9a-fA-F]{40})"\s*$'
+    )
+
+    if (-not $CommitMatch.Success) {
+        throw "Published commit is missing."
+    }
+
+    $PublishedCommit = $CommitMatch.Groups[1].Value.ToLowerInvariant()
+    $Expected = $ExpectedCommit.ToLowerInvariant()
+
+    if ($PublishedCommit -ne $Expected) {
+        throw "Expected commit does not match published commit. Approval blocked."
+    }
+
+    if ($Decision -eq "APPROVED_FOR_MERGE") {
+
+        $MergeMatch = [regex]::Match(
+            $Yaml,
+            '(?m)^\s{2}mergeability:\s*"([^"]+)"\s*$'
+        )
+
+        if (-not $MergeMatch.Success) {
+            throw "Mergeability status is missing."
+        }
+
+        if ($MergeMatch.Groups[1].Value -ne "clean") {
+            throw "Mergeability is not clean. Approval blocked."
+        }
+    }
+
+    if (Test-Path $DecisionPath) {
+        throw "po-decision.md already exists."
+    }
+
+    $Now = Get-AadoTimestamp
+
+    $DecisionText = @(
+        "# $RoundId — PO Decision",
+        "",
+        "Decision: $Decision",
+        "Published commit: $PublishedCommit",
+        "Decided at: $Now",
+        "",
+        "Note:",
+        $Note
+    )
+
+    Set-Content `
+        -Path $DecisionPath `
+        -Value $DecisionText `
+        -Encoding UTF8
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^(\s{2})status:\s+pending\s*$',
+        '${1}status: "' + $Decision + '"',
+        1
+    )
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^(\s{2})decided_at:\s+null\s*$',
+        '${1}decided_at: "' + $Now + '"',
+        1
+    )
+
+    if ($Decision -eq "APPROVED_FOR_MERGE") {
+        $Yaml = [regex]::Replace(
+            $Yaml,
+            '(?m)^(\s{2})approved_commit:\s+null\s*$',
+            '${1}approved_commit: "' + $PublishedCommit + '"',
+            1
+        )
+    }
+
+    $Yaml = [regex]::Replace(
+        $Yaml,
+        '(?m)^updated_at:\s*".*?"\s*$',
+        'updated_at: "' + $Now + '"'
+    )
+
+    Set-Content `
+        -Path $YamlPath `
+        -Value $Yaml `
+        -Encoding UTF8
+
+    return [pscustomobject]@{
+        RoundId        = $RoundId
+        Decision       = $Decision
+        PublishedCommit = $PublishedCommit
+        ApprovedCommit = if ($Decision -eq "APPROVED_FOR_MERGE") {
+            $PublishedCommit
+        }
+        else {
+            $null
+        }
+        DecisionFile   = $DecisionPath
+        DecidedAt      = $Now
+    }
+}
+
 Export-ModuleMember -Function @(
     "Get-AadoTimestamp",
     "Get-AadoNextRoundId",
@@ -1019,6 +1285,9 @@ Export-ModuleMember -Function @(
     "Close-AadoBlindPhase",
     "Save-AadoCrossReview",
     "Save-AadoImplementerResponse",
-    "Build-AadoPODigest"
+    "Build-AadoPODigest",
+    "Set-AadoPublicationMetadata",
+    "Set-AadoPODecision"
 )
+
 
