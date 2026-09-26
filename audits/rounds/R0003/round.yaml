@@ -1,0 +1,51 @@
+﻿schema_version: 1
+round_id: R0003
+created_at: "2026-09-24T19:49:57-03:00"
+updated_at: "2026-09-24T19:49:58-03:00"
+status: draft
+
+topic:
+  title: "Prueba de decisiones PO y mergeability"
+  category: "testing"
+
+participants:
+  implementer: ChatGPT
+  auditors:
+    - Claude
+    - Gemini
+  po: Guido
+
+phases:
+  proposal: completed
+  blind_review:
+    claude: completed
+    gemini: completed
+  blind_review_closed: true
+  cross_review:
+    claude: completed
+    gemini: completed
+  implementer_response: completed
+  po_digest: completed
+publication:
+  branch: "test/po-decision"
+  commit: "1111111111111111111111111111111111111111"
+  pr_url: "https://github.com/GLR2026/AADO/pull/999"
+  pr_number: 999
+  mergeability: "clean"
+  checked_at: "2026-09-24T19:49:58-03:00"
+po_decision:
+  status: "CHANGES_REQUESTED"
+  decided_at: "2026-09-24T19:49:58-03:00"
+  approved_commit: null
+
+
+
+
+
+
+
+
+
+
+
+

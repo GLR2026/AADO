@@ -1,0 +1,48 @@
+﻿schema_version: 1
+round_id: R0004
+created_at: "2026-09-24T20:05:53-03:00"
+updated_at: "2026-09-24T22:23:42-03:00"
+status: draft
+
+topic:
+  title: "Auditoría real de AADO-COMM-002 PO Governance"
+  category: "testing"
+
+participants:
+  implementer: ChatGPT
+  auditors:
+    - Claude
+    - Gemini
+  po: Guido
+
+phases:
+  proposal: completed
+  blind_review:
+    claude: completed
+    gemini: completed
+  blind_review_closed: true
+  cross_review:
+    claude: completed
+    gemini: completed
+  implementer_response: completed
+  po_digest: completed
+publication:
+  branch: null
+  commit: null
+  pr_url: null
+  pr_number: null
+  mergeability: null
+  checked_at: null
+
+po_decision:
+  status: pending
+  decided_at: null
+  approved_commit: null
+
+
+
+
+
+
+
+
